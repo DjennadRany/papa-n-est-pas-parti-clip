@@ -1,0 +1,27 @@
+name: Assemble finished AI film
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate every required shot and audio before rendering
+        run: python3 ai/validate.py
+      - name: Install editor
+        run: |
+          npm install --no-audit --no-fund
+          npx remotion browser ensure
+      - name: Assemble film with original audio
+        run: npm run render
+      - uses: actions/upload-artifact@v4
+        with:
+          name: film-complet-mp4
+          path: out/papa-n-est-pas-parti.mp4
+          retention-days: 30
