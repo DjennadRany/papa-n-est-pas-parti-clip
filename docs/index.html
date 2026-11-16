@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Studio Clip IA</title><style>
+:root{color-scheme:dark;font-family:system-ui,Arial;background:#101522;color:#eef1ff}body{max-width:1050px;margin:auto;padding:22px}h1{font-size:2rem}p{line-height:1.5;color:#c4cbe1}.panel{background:#1b2334;border:1px solid #3d4961;border-radius:14px;padding:18px;margin:18px 0}label{display:block;margin:14px 0 6px}input,textarea,button{box-sizing:border-box;width:100%;border-radius:8px;border:1px solid #64718a;padding:12px;background:#101827;color:white}button{background:#315bd3;border:0;cursor:pointer;font-weight:700;margin-top:12px}button:disabled{opacity:.5}small{color:#aeb9d2}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}.shot{border:1px solid #3c4860;border-radius:9px;padding:12px}.shot b{display:block}.shot span{font-size:13px;color:#b7c6da}.ok{color:#76e5ae!important}.warning{color:#ffd181!important}a{color:#98bbff}#status{white-space:pre-wrap}</style></head>
+<body><h1>🎬 Studio Clip IA</h1><p>Tableau de production local : prépare ton scénario, ton audio, tes images et tes séquences IA. L'interface ne téléverse rien à ton insu.</p>
+<section class="panel"><h2>1. Préparer un nouveau projet</h2>
+<label for="title">Titre du clip</label><input id="title" value="Papa n'est pas parti">
+<label for="audio">Audio (MP3, WAV)</label><input id="audio" type="file" accept="audio/*">
+<label for="images">Illustrations numérotées (JPG, PNG)</label><input id="images" type="file" accept="image/*" multiple>
+<label for="story">Scénario et consignes de réalisation</label><textarea id="story" rows="6" placeholder="Raconte les actions, les personnages et les raccords entre les plans..."></textarea>
+<button id="export">Télécharger le manifeste JSON</button><small>Le manifeste contient les noms de fichiers et les consignes, pas les médias eux-mêmes. Pour lancer les calculs, importer ensuite les fichiers dans le dépôt GitHub.</small></section>
+<section class="panel"><h2>2. Production des plans</h2><p>Chaque plan peut venir d'un moteur IA différent ou être ajouté manuellement. Le montage accepte des MP4, quelle que soit leur origine.</p><div id="progress">Chargement…</div><div class="grid" id="shots"></div></section>
+<section class="panel"><h2>3. Assemblage</h2><p>Importer les vidéos sous <code>public/assets/video/01.mp4</code> à <code>48.mp4</code>, puis lancer le workflow de validation et de montage. Les plans déjà présents ne sont jamais régénérés.</p>
+<a id="actions" target="_blank" rel="noopener">Ouvrir le montage GitHub Actions</a>
+<p id="status"></p></section>
+<script>
+const repo="DjennadRany/papa-n-est-pas-parti-clip";
+document.getElementById("actions").href="https://github.com/"+repo+"/actions/workflows/assemble-film.yml";
+document.getElementById("export").onclick=()=>{
+const images=[...document.getElementById("images").files].map(f=>f.name);
+const audio=document.getElementById("audio").files[0]?.name||"";
+const data={schema:1,title:document.getElementById("title").value,storyboard:document.getElementById("story").value,audio,images,generated_at:new Date().toISOString()};
+const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:"application/json"}));a.download="clip-project.json";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+};
+async function refresh(){
+try{
+const [t,a]=await Promise.all([fetch("https://api.github.com/repos/"+repo+"/contents/scenes.json"),fetch("https://api.github.com/repos/"+repo+"/contents/public/assets/video")]);
+if(!t.ok)throw Error("Dépôt privé : l'API GitHub ne permet pas de lire les plans anonymement. Connecte-toi à GitHub et utilise le dépôt pour gérer les fichiers.");
+const file=await t.json();const manifest=JSON.parse(atob(file.content.replace(/\s/g,"")));const names=a.ok?(await a.json()).map(x=>x.name):[];
+const done=manifest.scenes.filter(s=>names.includes(String(s.id).padStart(2,"0")+".mp4")).length;
+document.getElementById("progress").textContent=done+"/"+manifest.scenes.length+" séquences vidéo présentes dans le dépôt.";
+document.getElementById("shots").innerHTML=manifest.scenes.map(s=>{const ok=names.includes(String(s.id).padStart(2,"0")+".mp4");return '<div class="shot"><b>Plan '+String(s.id).padStart(2,"0")+'</b><span>'+String(s.title).replace(/[&<>"]/g,"")+'</span><br><span class="'+(ok?"ok":"warning")+'">'+(ok?"Vidéo disponible":"Vidéo manquante")+'</span></div>'}).join("");
+}catch(e){document.getElementById("progress").textContent="Suivi indisponible : "+e.message;document.getElementById("shots").innerHTML="";}
+}refresh();
+</script></body></html>
