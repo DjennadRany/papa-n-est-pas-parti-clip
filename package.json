@@ -1,0 +1,20 @@
+{
+  "name": "papa-n-est-pas-parti-clip",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Clip animé Papa n'est pas parti — Remotion",
+  "scripts": {
+    "studio": "remotion studio src/index.jsx",
+    "render": "remotion render src/index.jsx PapaClip out/papa-n-est-pas-parti.mp4 --codec=h264 --concurrency=2",
+    "render:preview": "remotion render src/index.jsx PapaClip out/apercu.mp4 --codec=h264 --scale=0.5 --concurrency=2",
+    "compositions": "remotion compositions src/index.jsx"
+  },
+  "dependencies": {
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "remotion": "4.0.543"
+  },
+  "devDependencies": {
+    "@remotion/cli": "4.0.543"
+  }
+}
