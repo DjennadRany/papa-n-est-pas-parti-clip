@@ -27,13 +27,26 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Recover all nonexpired footage artifacts
+      - name: Recover footage using GitHub CLI (avoids artifact redirect 401)
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           mkdir -p public/assets/video
-          python ai/restore_artifacts.py
+          gh run list --repo "$GITHUB_REPOSITORY" --limit 70 --json databaseId --jq '.[].databaseId' > /tmp/papa-runs.txt
+          while read -r run; do
+            mkdir -p "/tmp/papa-run-$run"
+            if gh run download "$run" --repo "$GITHUB_REPOSITORY" --dir "/tmp/papa-run-$run" 2>/dev/null; then
+              while IFS= read -r -d '' file; do
+                name=$(basename "$file")
+                if [[ "$name" =~ ^(0[1-9]|[1-3][0-9]|4[0-8])\.mp4$ ]] && [ ! -s "public/assets/video/$name" ]; then
+                  cp "$file" "public/assets/video/$name"
+                  echo "Recovered $name from run $run"
+                fi
+              done < <(find "/tmp/papa-run-$run" -type f -name '*.mp4' -print0)
+            fi
+          done < /tmp/papa-runs.txt
+          echo "Recovered $(find public/assets/video -type f -name '*.mp4' | wc -l) clips"
       - name: Install generator
         run: pip install -r ai/requirements.txt
       - name: Generate missing clips, stopping when free GPU quota is reached
