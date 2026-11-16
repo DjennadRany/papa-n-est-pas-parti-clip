@@ -1,0 +1,38 @@
+name: Rendu du clip
+on:
+  workflow_dispatch:
+    inputs:
+      quality:
+        description: Qualite du rendu
+        type: choice
+        options: [preview, full]
+        default: preview
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verifier les 24 images et le MP3
+        run: |
+          test -f public/assets/audio/song.mp3
+          for n in $(seq -w 1 24); do test -f "public/assets/images/$n.jpg" || exit 1; done
+      - name: Installer les dependances
+        run: npm install --no-audit --no-fund
+      - name: Installer Chromium pour le rendu
+        run: npx remotion browser ensure
+      - name: Rendre le clip (apercu 960p × 540p ou complet 1080p)
+        run: |
+          if [ "${{ inputs.quality }}" = "full" ]; then
+            npm run render
+          else
+            npm run render:preview
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: clip-mp4
+          path: out/*.mp4
+          retention-days: 7
