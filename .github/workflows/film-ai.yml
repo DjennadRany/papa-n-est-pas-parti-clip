@@ -1,6 +1,11 @@
 name: Generate and assemble 48 AI film shots
 
 on:
+  schedule:
+    - cron: '20 9 * * *'
+  push:
+    paths:
+      - '.github/workflows/film-ai.yml'
   workflow_dispatch:
     inputs:
       max_new_shots:
@@ -33,7 +38,7 @@ jobs:
           npm install --no-audit --no-fund
       - name: Generate ONLY missing shots (stop immediately on quota)
         env:
-          MAX_NEW_SHOTS: ${{ inputs.max_new_shots }}
+          MAX_NEW_SHOTS: ${{ inputs.max_new_shots || '2' }}
         shell: bash
         run: |
           set +e
