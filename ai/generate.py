@@ -39,15 +39,25 @@ def main():
     if output.exists() and output.stat().st_size>1000:
         print(f"Already generated: {output}")
         return
-    prompt=MOTIONS.get(args.scene,DEFAULT)
+    # Derive scene-specific action and visual continuity instead of 43 identical prompts.
+    ordered=sorted(TIMELINE["scenes"],key=lambda item:item["start"])
+    idx=next(i for i,item in enumerate(ordered) if item["id"]==args.scene)
+    before=ordered[idx-1]["title"] if idx else "opening"
+    after=ordered[idx+1]["title"] if idx+1<len(ordered) else "ending"
+    context=(f"Scene: {scene['title']}. Previous scene: {before}. "
+             f"Next scene: {after}. Show a clear character action motivated by this scene, "
+             "with natural articulated movement and expressive acting, coherent cinematic "
+             "continuity, hand-painted fantasy backgrounds and stylized 3D characters, "
+             "a warm poetic Japanese animated feature aesthetic. No text, no subtitles. ")
+    prompt=context+MOTIONS.get(args.scene,DEFAULT)
     print(f"Submitting scene {args.scene} to {SPACE}; public GPU may be unavailable.",flush=True)
-    client=Client(SPACE)
     try:
+        client=Client(SPACE)
         result=client.predict(input_image=handle_file(str(image)),prompt=prompt,steps=6,
       duration_seconds=min(args.duration,4.0),guidance_scale=1,guidance_scale_2=1,
           seed=42+args.scene,randomize_seed=False,api_name="/generate_video")
     except Exception as e:
-        if "ZeroGPU runs limit" in str(e) or "exceeded your ZeroGPU" in str(e):
+        if any(term in str(e).lower() for term in ["zerogpu runs limit","exceeded your zerogpu","quota exceeded","rate limit exceeded"]):
             print("QUOTA_EXHAUSTED: Stop and save footage; never retry same quota.",flush=True)
             raise SystemExit(75)
         raise
