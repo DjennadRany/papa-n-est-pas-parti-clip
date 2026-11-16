@@ -1,0 +1,177 @@
+{
+  "title": "Papa n'est pas parti",
+  "fps": 24,
+  "width": 1920,
+  "height": 1080,
+  "duration_seconds": 177.984,
+  "scenes": [
+    {
+      "id": 1,
+      "title": "Deux coussins",
+      "start": 0,
+      "end": 7,
+      "image": "assets/images/01.jpg"
+    },
+    {
+      "id": 2,
+      "title": "Le sablier de la juge",
+      "start": 7,
+      "end": 15,
+      "image": "assets/images/02.jpg"
+    },
+    {
+      "id": 3,
+      "title": "Un soleil par jour",
+      "start": 15,
+      "end": 22,
+      "image": "assets/images/03.jpg"
+    },
+    {
+      "id": 4,
+      "title": "Les guichets dans le ciel",
+      "start": 22,
+      "end": 30,
+      "image": "assets/images/04.jpg"
+    },
+    {
+      "id": 5,
+      "title": "La tortue à tiroirs",
+      "start": 30,
+      "end": 40,
+      "image": "assets/images/05.jpg"
+    },
+    {
+      "id": 6,
+      "title": "Le dossier ressort",
+      "start": 40,
+      "end": 52,
+      "image": "assets/images/06.jpg"
+    },
+    {
+      "id": 7,
+      "title": "Une écharpe pour deux",
+      "start": 52,
+      "end": 60,
+      "image": "assets/images/07.jpg"
+    },
+    {
+      "id": 8,
+      "title": "Le pavillon de soins",
+      "start": 60,
+      "end": 67,
+      "image": "assets/images/08.jpg"
+    },
+    {
+      "id": 9,
+      "title": "Les bottes-fusées",
+      "start": 67,
+      "end": 75,
+      "image": "assets/images/09.jpg"
+    },
+    {
+      "id": 10,
+      "title": "Le ragot prend forme",
+      "start": 75,
+      "end": 84,
+      "image": "assets/images/10.jpg"
+    },
+    {
+      "id": 11,
+      "title": "Le monstre aux cent bouches",
+      "start": 84,
+      "end": 93,
+      "image": "assets/images/11.jpg"
+    },
+    {
+      "id": 12,
+      "title": "Le jet d'eau",
+      "start": 93,
+      "end": 101,
+      "image": "assets/images/12.jpg"
+    },
+    {
+      "id": 13,
+      "title": "La porte à barreaux",
+      "start": 101,
+      "end": 109,
+      "image": "assets/images/13.jpg"
+    },
+    {
+      "id": 14,
+      "title": "Les pages continuent",
+      "start": 109,
+      "end": 118,
+      "image": "assets/images/14.jpg"
+    },
+    {
+      "id": 15,
+      "title": "La fenêtre éteinte",
+      "start": 118,
+      "end": 123,
+      "image": "assets/images/15.jpg"
+    },
+    {
+      "id": 16,
+      "title": "Le trait d'or",
+      "start": 123,
+      "end": 125.7,
+      "image": "assets/images/16.jpg"
+    },
+    {
+      "id": 17,
+      "title": "Le dragon attaque",
+      "start": 125.7,
+      "end": 132,
+      "image": "assets/images/17.jpg"
+    },
+    {
+      "id": 18,
+      "title": "La griffe dans les rails",
+      "start": 132,
+      "end": 139,
+      "image": "assets/images/18.jpg"
+    },
+    {
+      "id": 19,
+      "title": "Le bâton fait levier",
+      "start": 139,
+      "end": 146,
+      "image": "assets/images/19.jpg"
+    },
+    {
+      "id": 20,
+      "title": "Dehors au matin",
+      "start": 146,
+      "end": 154,
+      "image": "assets/images/20.jpg"
+    },
+    {
+      "id": 21,
+      "title": "Le courrier",
+      "start": 154,
+      "end": 161,
+      "image": "assets/images/21.jpg"
+    },
+    {
+      "id": 22,
+      "title": "Le carnet arrive",
+      "start": 161,
+      "end": 168,
+      "image": "assets/images/22.jpg"
+    },
+    {
+      "id": 23,
+      "title": "À toi de raconter",
+      "start": 168,
+      "end": 174,
+      "image": "assets/images/23.jpg"
+    },
+    {
+      "id": 24,
+      "title": "Les deux lampes",
+      "start": 174,
+      "end": 177.984,
+      "image": "assets/images/24.jpg"
+    }
+  ]
+}
