@@ -1,0 +1,58 @@
+name: Generate and assemble 48 AI film shots
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/film-ai.yml'
+permissions:
+  contents: read
+concurrency:
+  group: papa-ai-film
+  cancel-in-progress: false
+jobs:
+  movie:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install generation and editing tools
+        run: |
+          pip install -r ai/requirements.txt
+          npm install --no-audit --no-fund
+          npx remotion browser ensure
+      - name: Generate 48 real-motion AI shots, sequentially
+        run: |
+          mkdir -p public/assets/video
+          failed=0
+          for n in $(seq 1 48); do
+            echo "::group::Generating AI shot $n / 48"
+            if ! python ai/generate.py --scene "$n" --duration 3.5; then
+              echo "::warning::AI shot $n failed, retrying once"
+              sleep 15
+              if ! python ai/generate.py --scene "$n" --duration 3.5; then
+                echo "::error::AI shot $n unavailable due to GPU/API/quota"
+                failed=$((failed+1))
+              fi
+            fi
+            echo "::endgroup::"
+          done
+          if [ "$failed" -gt 0 ]; then
+            echo "::error::$failed shots unavailable; cannot claim finished movie"
+            exit 1
+          fi
+      - name: Render complete film with original music
+        run: npm run render
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: papa-ai-footage-and-film
+          path: |
+            public/assets/video/*.mp4
+            out/*.mp4
+          retention-days: 7
