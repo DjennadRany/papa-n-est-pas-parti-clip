@@ -1,58 +1,99 @@
 name: Generate and assemble 48 AI film shots
+
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - '.github/workflows/film-ai.yml'
+    inputs:
+      max_new_shots:
+        description: "Maximum new clips this run (respects daily free GPU quota)"
+        type: choice
+        options: ["1", "2", "3"]
+        default: "2"
 permissions:
   contents: read
+  actions: read
 concurrency:
   group: papa-ai-film
   cancel-in-progress: false
 jobs:
   movie:
     runs-on: ubuntu-latest
-    timeout-minutes: 360
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
-          python-version: '3.11'
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-      - name: Install generation and editing tools
+          python-version: "3.11"
+      - name: Restore all shots produced by prior GitHub Actions runs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python ai/restore_artifacts.py
+      - name: Install generator and editor
         run: |
           pip install -r ai/requirements.txt
           npm install --no-audit --no-fund
-          npx remotion browser ensure
-      - name: Generate 48 real-motion AI shots, sequentially
+      - name: Generate ONLY missing shots (stop immediately on quota)
+        env:
+          MAX_NEW_SHOTS: ${{ inputs.max_new_shots }}
+        shell: bash
         run: |
-          mkdir -p public/assets/video
-          failed=0
+          set +e
+          generated=0
+          quota=0
           for n in $(seq 1 48); do
-            echo "::group::Generating AI shot $n / 48"
-            if ! python ai/generate.py --scene "$n" --duration 3.5; then
-              echo "::warning::AI shot $n failed, retrying once"
-              sleep 15
-              if ! python ai/generate.py --scene "$n" --duration 3.5; then
-                echo "::error::AI shot $n unavailable due to GPU/API/quota"
-                failed=$((failed+1))
-              fi
+            name=$(printf '%02d' "$n")
+            if [ -s "public/assets/video/$name.mp4" ]; then
+              echo "Scene $name already saved; skipping"
+              continue
             fi
-            echo "::endgroup::"
+            if [ "$generated" -ge "$MAX_NEW_SHOTS" ]; then
+              echo "New-shots limit reached ($MAX_NEW_SHOTS); next missing scene: $name"
+              break
+            fi
+            echo "Generating scene $name..."
+            python ai/generate.py --scene "$n" --duration 3.5
+            code=$?
+            if [ "$code" -eq 75 ]; then
+              echo "::warning::Hugging Face ZeroGPU quota exhausted. Stopping gracefully; generated clips will be saved."
+              quota=1
+              break
+            elif [ "$code" -ne 0 ]; then
+              echo "::warning::Scene $name failed (exit code $code). Stop to investigate; footage remains preserved."
+              break
+            fi
+            generated=$((generated + 1))
           done
-          if [ "$failed" -gt 0 ]; then
-            echo "::error::$failed shots unavailable; cannot claim finished movie"
-            exit 1
+          count=$(find public/assets/video -name '*.mp4' | wc -l)
+          echo "Available AI shots: $count/48; generated this run: $generated"
+          echo "QUOTA_EXHAUSTED=$quota" >> "$GITHUB_ENV"
+          exit 0
+      - name: Check progress
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          files = [Path("public/assets/video") / f"{n:02d}.mp4" for n in range(1, 49)]
+          missing = [p.stem for p in files if not p.is_file() or p.stat().st_size < 10000]
+          print(f"AI movie footage: {48-len(missing)}/48")
+          print("Missing: " + (", ".join(missing) or "none"))
+          with open("film-complete.txt", "w") as f:
+              f.write("true" if not missing else "false")
+          PY
+      - name: Render completed full film and original MP3
+        if: ${{ hashFiles('film-complete.txt') != '' }}
+        shell: bash
+        run: |
+          if [ "$(cat film-complete.txt)" = "true" ]; then
+            npx remotion browser ensure
+            npm run render
+          else
+            echo "Film is not yet complete. No slideshow or fake finished movie will be exported."
           fi
-      - name: Render complete film with original music
-        run: npm run render
-      - uses: actions/upload-artifact@v4
+      - name: Save every existing MP4 checkpoint (even on quota)
         if: always()
+        uses: actions/upload-artifact@v4
         with:
-          name: papa-ai-footage-and-film
+          name: papa-ai-shots-checkpoint
           path: |
             public/assets/video/*.mp4
             out/*.mp4
-          retention-days: 7
+          if-no-files-found: warn
+          retention-days: 30
