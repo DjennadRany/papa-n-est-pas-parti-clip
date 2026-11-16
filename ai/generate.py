@@ -33,8 +33,12 @@ def main():
     args=p.parse_args()
     scene=next((s for s in TIMELINE["scenes"] if s["id"]==args.scene),None)
     if scene is None: raise SystemExit(f"Unknown scene {args.scene}")
-    image=ROOT / "public" / scene["image"]
-    if not image.is_file(): raise SystemExit(f"Missing image: {image}")
+    # All transition sources 25–48 have filename labels baked in.
+    # Use prepared/inpainted source exclusively; NEVER reintroduce watermarks.
+    image=(ROOT / "public/assets/prepared" / f"{args.scene:02d}.jpg"
+           if args.scene >= 25 else ROOT / "public" / scene["image"])
+    if not image.is_file():
+        raise SystemExit(f"Missing prepared illustration: {image}. Run python ai/prepare_images.py first.")
     output=OUT / f"{args.scene:02d}.mp4"
     if output.exists() and output.stat().st_size>1000:
         print(f"Already generated: {output}")
