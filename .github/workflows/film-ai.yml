@@ -1,18 +1,14 @@
-name: Generate and assemble 48 AI film shots
-
+name: Produce and assemble AI film (resumable)
 on:
-  schedule:
-    - cron: '20 9 * * *'
-  push:
-    paths:
-      - '.github/workflows/film-ai.yml'
   workflow_dispatch:
     inputs:
       max_new_shots:
-        description: "Maximum new clips this run (respects daily free GPU quota)"
+        description: "Maximum new AI shots to request this run"
         type: choice
-        options: ["1", "2", "3"]
-        default: "2"
+        options: ['1','2','3']
+        default: '2'
+  schedule:
+    - cron: '20 9 * * *'
 permissions:
   contents: read
   actions: read
@@ -20,113 +16,53 @@ concurrency:
   group: papa-ai-film
   cancel-in-progress: false
 jobs:
-  movie:
+  film:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 110
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v6
         with:
-          python-version: "3.11"
-      - name: Restore previously generated shots from Actions artifacts
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Recover all nonexpired footage artifacts
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           mkdir -p public/assets/video
-          for run in 43888771431 43895021090; do
-            mkdir -p "/tmp/shot-archive-$run"
-            if gh run download "$run" --repo "$GITHUB_REPOSITORY" --dir "/tmp/shot-archive-$run"; then
-              find "/tmp/shot-archive-$run" -type f -name '*.mp4' | while read -r src; do
-                name=$(basename "$src")
-                if [[ "$name" =~ ^[0-4][0-9]\.mp4$ ]] && [ ! -s "public/assets/video/$name" ]; then
-                  cp "$src" "public/assets/video/$name"
-                  echo "Recovered $name"
-                fi
-              done
-            else
-              echo "::warning::Cannot restore artifact from run $run"
-            fi
-          done
-          echo "Recovered $(find public/assets/video -name '*.mp4' | wc -l) AI shots"
-      - name: Install generator and editor
-        run: |
-          pip install -r ai/requirements.txt
-          npm install --no-audit --no-fund
-      - name: Restore previous checkpoint from GitHub cache
-        uses: actions/cache/restore@v4
-        with:
-          path: public/assets/video
-          key: ai-footage-${{ github.run_id }}
-          restore-keys: |
-            ai-footage-
-      - name: Generate ONLY missing shots (stop immediately on quota)
+          python ai/restore_artifacts.py
+      - name: Install generator
+        run: pip install -r ai/requirements.txt
+      - name: Generate missing clips, stopping when free GPU quota is reached
         env:
-          MAX_NEW_SHOTS: ${{ inputs.max_new_shots || '2' }}
+          MAX_NEW: ${{ inputs.max_new_shots || '2' }}
+        run: python ai/produce.py generate --max-new "$MAX_NEW"
+      - name: Count and validate footage
+        id: check
         shell: bash
         run: |
-          set +e
-          generated=0
-          quota=0
-          for n in $(seq 1 48); do
-            name=$(printf '%02d' "$n")
-            if [ -s "public/assets/video/$name.mp4" ]; then
-              echo "Scene $name already saved; skipping"
-              continue
-            fi
-            if [ "$generated" -ge "$MAX_NEW_SHOTS" ]; then
-              echo "New-shots limit reached ($MAX_NEW_SHOTS); next missing scene: $name"
-              break
-            fi
-            echo "Generating scene $name..."
-            python ai/generate.py --scene "$n" --duration 3.5
-            code=$?
-            if [ "$code" -eq 75 ]; then
-              echo "::warning::Hugging Face ZeroGPU quota exhausted. Stopping gracefully; generated clips will be saved."
-              quota=1
-              break
-            elif [ "$code" -ne 0 ]; then
-              echo "::warning::Scene $name failed (exit code $code). Stop to investigate; footage remains preserved."
-              break
-            fi
-            generated=$((generated + 1))
-          done
-          count=$(find public/assets/video -name '*.mp4' | wc -l)
-          echo "Available AI shots: $count/48; generated this run: $generated"
-          echo "QUOTA_EXHAUSTED=$quota" >> "$GITHUB_ENV"
-          exit 0
-      - name: Check progress
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          files = [Path("public/assets/video") / f"{n:02d}.mp4" for n in range(1, 49)]
-          missing = [p.stem for p in files if not p.is_file() or p.stat().st_size < 10000]
-          print(f"AI movie footage: {48-len(missing)}/48")
-          print("Missing: " + (", ".join(missing) or "none"))
-          with open("film-complete.txt", "w") as f:
-              f.write("true" if not missing else "false")
-          PY
-      - name: Render completed full film and original MP3
-        if: ${{ hashFiles('film-complete.txt') != '' }}
-        shell: bash
-        run: |
-          if [ "$(cat film-complete.txt)" = "true" ]; then
-            npx remotion browser ensure
-            npm run render
+          python ai/produce.py status
+          if python ai/produce.py validate; then
+            echo "complete=true" >> "$GITHUB_OUTPUT"
           else
-            echo "Film is not yet complete. No slideshow or fake finished movie will be exported."
+            echo "complete=false" >> "$GITHUB_OUTPUT"
           fi
-      - name: Cache footage for future runs
-        if: always()
-        uses: actions/cache/save@v4
-        with:
-          path: public/assets/video
-          key: ai-footage-${{ github.run_id }}
-      - name: Save every existing MP4 checkpoint (even on quota)
+      - name: Install editor
+        if: steps.check.outputs.complete == 'true'
+        run: |
+          npm install --no-audit --no-fund
+          npx remotion browser ensure
+      - name: Render full movie with original soundtrack
+        if: steps.check.outputs.complete == 'true'
+        run: npm run render
+      - name: Save all finished footage and film
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: papa-ai-shots-checkpoint
+          name: papa-ai-footage-and-film
           path: |
             public/assets/video/*.mp4
             out/*.mp4
