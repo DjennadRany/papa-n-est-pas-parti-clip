@@ -49,6 +49,10 @@ jobs:
           echo "Recovered $(find public/assets/video -type f -name '*.mp4' | wc -l) clips"
       - name: Install generator
         run: pip install -r ai/requirements.txt
+      - name: Clean filename labels from transition illustrations
+        run: python ai/prepare_images.py
+      - name: Verify source assets and timeline
+        run: python -m unittest discover -s ai -p 'test_*.py' -v
       - name: Generate missing clips, stopping when free GPU quota is reached
         env:
           MAX_NEW: ${{ inputs.max_new_shots || '2' }}
@@ -71,6 +75,9 @@ jobs:
       - name: Render full movie with original soundtrack
         if: steps.check.outputs.complete == 'true'
         run: npm run render
+      - name: Save progress report
+        if: always()
+        run: python ai/produce.py status > production-status.json
       - name: Save all finished footage and film
         if: always()
         uses: actions/upload-artifact@v4
@@ -79,5 +86,6 @@ jobs:
           path: |
             public/assets/video/*.mp4
             out/*.mp4
+            production-status.json
           if-no-files-found: warn
           retention-days: 30
