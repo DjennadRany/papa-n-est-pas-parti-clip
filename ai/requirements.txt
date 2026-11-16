@@ -1,2 +1,4 @@
 gradio_client>=1.10,<3
 Pillow>=10,<13
+numpy>=1.26,<3
+opencv-python-headless>=4.10,<5
