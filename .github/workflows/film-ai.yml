@@ -28,14 +28,38 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
-      - name: Restore all shots produced by prior GitHub Actions runs
+      - name: Restore previously generated shots from Actions artifacts
         env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: python ai/restore_artifacts.py
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          mkdir -p public/assets/video
+          for run in 43888771431 43895021090; do
+            mkdir -p "/tmp/shot-archive-$run"
+            if gh run download "$run" --repo "$GITHUB_REPOSITORY" --dir "/tmp/shot-archive-$run"; then
+              find "/tmp/shot-archive-$run" -type f -name '*.mp4' | while read -r src; do
+                name=$(basename "$src")
+                if [[ "$name" =~ ^[0-4][0-9]\.mp4$ ]] && [ ! -s "public/assets/video/$name" ]; then
+                  cp "$src" "public/assets/video/$name"
+                  echo "Recovered $name"
+                fi
+              done
+            else
+              echo "::warning::Cannot restore artifact from run $run"
+            fi
+          done
+          echo "Recovered $(find public/assets/video -name '*.mp4' | wc -l) AI shots"
       - name: Install generator and editor
         run: |
           pip install -r ai/requirements.txt
           npm install --no-audit --no-fund
+      - name: Restore previous checkpoint from GitHub cache
+        uses: actions/cache/restore@v4
+        with:
+          path: public/assets/video
+          key: ai-footage-${{ github.run_id }}
+          restore-keys: |
+            ai-footage-
       - name: Generate ONLY missing shots (stop immediately on quota)
         env:
           MAX_NEW_SHOTS: ${{ inputs.max_new_shots || '2' }}
@@ -92,6 +116,12 @@ jobs:
           else
             echo "Film is not yet complete. No slideshow or fake finished movie will be exported."
           fi
+      - name: Cache footage for future runs
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: public/assets/video
+          key: ai-footage-${{ github.run_id }}
       - name: Save every existing MP4 checkpoint (even on quota)
         if: always()
         uses: actions/upload-artifact@v4
