@@ -42,9 +42,15 @@ def main():
     prompt=MOTIONS.get(args.scene,DEFAULT)
     print(f"Submitting scene {args.scene} to {SPACE}; public GPU may be unavailable.",flush=True)
     client=Client(SPACE)
-    result=client.predict(input_image=handle_file(str(image)),prompt=prompt,steps=6,
+    try:
+        result=client.predict(input_image=handle_file(str(image)),prompt=prompt,steps=6,
       duration_seconds=min(args.duration,4.0),guidance_scale=1,guidance_scale_2=1,
-      seed=42+args.scene,randomize_seed=False,api_name="/generate_video")
+          seed=42+args.scene,randomize_seed=False,api_name="/generate_video")
+    except Exception as e:
+        if "ZeroGPU runs limit" in str(e) or "exceeded your ZeroGPU" in str(e):
+            print("QUOTA_EXHAUSTED: Stop and save footage; never retry same quota.",flush=True)
+            raise SystemExit(75)
+        raise
     source=result[0] if isinstance(result,(tuple,list)) else result
     if isinstance(source,dict): source=source.get("video") or source.get("path")
     if not source or not Path(source).exists(): raise RuntimeError(f"No local MP4 from provider: {result}")
