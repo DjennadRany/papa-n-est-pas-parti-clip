@@ -1,0 +1,32 @@
+name: Generate AI motion shot (free public GPU)
+on:
+  workflow_dispatch:
+    inputs:
+      scene:
+        description: "Scene ID (1 to 48)"
+        required: true
+        default: "1"
+      duration:
+        description: "Seconds (max 4)"
+        required: true
+        default: "3.5"
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r ai/requirements.txt
+      - name: Generate real AI video on free public Wan GPU
+        env:
+          SCENE: ${{ inputs.scene }}
+          DURATION: ${{ inputs.duration }}
+        run: python ai/generate.py --scene "$SCENE" --duration "$DURATION"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ai-shot-${{ inputs.scene }}
+          path: public/assets/video/*.mp4
+          retention-days: 7
