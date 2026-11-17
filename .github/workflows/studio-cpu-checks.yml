@@ -1,0 +1,43 @@
+name: Studio CPU checks
+on:
+  push:
+    paths:
+      - 'docs/**'
+      - 'scenes.json'
+      - '.github/workflows/studio-cpu-checks.yml'
+  pull_request:
+    paths:
+      - 'docs/**'
+      - 'scenes.json'
+      - '.github/workflows/studio-cpu-checks.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Unit tests for timeline and CPU keyframes
+        run: node --test docs/studio-core.test.mjs
+      - name: Check browser module syntax
+        run: |
+          node --check docs/studio-core.mjs
+          node --check docs/studio-core.test.mjs
+      - name: Validate 48 scenes and assets
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import {validateScenes} from './docs/studio-core.mjs';
+          const manifest=JSON.parse(fs.readFileSync('scenes.json','utf8'));
+          const scenes=validateScenes(manifest.scenes);
+          if(scenes.length!==48)throw Error('Expected 48 scenes');
+          for(const scene of scenes){
+            if(!fs.existsSync('public/'+scene.image))throw Error('Missing '+scene.image);
+          }
+          if(!fs.existsSync("public/assets/audio/Papa n'est pas parti(1).mp3"))throw Error('Missing soundtrack');
+          if(Math.abs(scenes.at(-1).end-manifest.duration_seconds)>0.01)throw Error('Timeline mismatch');
+          console.log('48 scenes, original soundtrack and continuity OK');
+          JS
