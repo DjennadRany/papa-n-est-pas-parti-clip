@@ -7,7 +7,7 @@ import produce
 
 
 def fake_mp4(payload):
-    return bytes([0, 0, 0, 24]) + b"ftypisom" + payload * 1024
+    return bytes([0, 0, 0, 24]) + b"ftypisom" + payload * 12000
 
 
 class ResumeTests(unittest.TestCase):
