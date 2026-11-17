@@ -26,6 +26,16 @@ jobs:
         run: |
           node --check docs/studio-core.mjs
           node --check docs/studio-core.test.mjs
+      - name: Check browser studio module syntax
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          const html=fs.readFileSync('docs/index.html','utf8');
+          const match=html.match(/<script type="module">([\\s\\S]*?)<\\/script>/);
+          if(!match)throw Error('Studio module missing');
+          fs.writeFileSync('/tmp/studio-ui.mjs',match[1].replace('from "./studio-core.mjs"','from "./studio-core.mjs"'));
+          JS
+          node --check /tmp/studio-ui.mjs
       - name: Validate 48 scenes and assets
         run: |
           node --input-type=module <<'JS'
@@ -34,6 +44,8 @@ jobs:
           const manifest=JSON.parse(fs.readFileSync('scenes.json','utf8'));
           const scenes=validateScenes(manifest.scenes);
           if(scenes.length!==48)throw Error('Expected 48 scenes');
+          const prompts=JSON.parse(fs.readFileSync('ai/scene_prompts.json','utf8'));
+          for(const scene of scenes)if(!prompts[scene.id]||prompts[scene.id].length<30)throw Error('Missing motion prompt '+scene.id);
           for(const scene of scenes){
             if(!fs.existsSync('public/'+scene.image))throw Error('Missing '+scene.image);
           }
