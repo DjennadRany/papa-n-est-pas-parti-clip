@@ -3,7 +3,9 @@
 set -euo pipefail
 mkdir -p public/assets/video
 if [[ -z "${GH_TOKEN:-}" ]]; then echo "GH_TOKEN unavailable";exit 1;fi
-gh run list --repo "$GITHUB_REPOSITORY" --workflow film-ai.yml --limit 90 --json databaseId --jq '.[].databaseId' > /tmp/clip-run-ids.txt
+gh run list --repo "$GITHUB_REPOSITORY" --workflow film-ai.yml --limit 100 --json databaseId,status,createdAt --jq 'sort_by(.createdAt) | reverse | .[] | select(.status == "completed") | .databaseId' > /tmp/clip-run-ids.txt
+# The most recent complete checkpoint wins; older archives only fill missing scenes.
+# Never download artifacts from an active run.
 while read -r run; do
   for artifact in papa-clean-ai-checkpoint-v2 papa-ai-footage-and-film papa-ai-shots-checkpoint ai-shot-1; do
     dir="/tmp/clip-assets-$run-$artifact"
@@ -29,4 +31,4 @@ while read -r run; do
     rm -rf "$dir"
   done
 done < /tmp/clip-run-ids.txt
-echo "Recovered total $(find public/assets/video -maxdepth 1 -type f -name '*.mp4' | wc -l) verified candidate clips"
+echo "Recovered total $(find public/assets/video -maxdepth 1 -type f -name '*.mp4' | wc -l) candidate clips from completed runs"\npython ai/produce.py status
