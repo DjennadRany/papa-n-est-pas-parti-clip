@@ -37,10 +37,47 @@ jobs:
         run: python ai/prepare_images.py
       - name: Verify source assets and timeline
         run: python -m unittest discover -s ai -p 'test_*.py' -v
+      - name: Snapshot existing clips before generation
+        run: |
+          mkdir -p /tmp/papa-before
+          find public/assets/video -maxdepth 1 -name '*.mp4' -printf '%f\n' | sort > /tmp/papa-before/names.txt
+          echo "Restored $(wc -l < /tmp/papa-before/names.txt) clips"
       - name: Generate missing clips, stopping when free GPU quota is reached
         env:
           MAX_NEW: ${{ inputs.max_new_shots || '1' }}
         run: python ai/produce.py generate --max-new "$MAX_NEW"
+      - name: Identify newly generated shots and write run summary
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p new-shots
+          find public/assets/video -maxdepth 1 -name '*.mp4' -printf '%f\n' | sort > /tmp/papa-after.txt
+          comm -13 /tmp/papa-before/names.txt /tmp/papa-after.txt > /tmp/papa-new.txt
+          while IFS= read -r shot; do
+            [[ -n "$shot" ]] || continue
+            cp "public/assets/video/$shot" "new-shots/$shot"
+          done < /tmp/papa-new.txt
+          {
+            echo '## Production vidéo IA — ce lancement'
+            echo "- Vidéos récupérées avant : $(wc -l < /tmp/papa-before/names.txt)"
+            echo "- Nouvelles vidéos : $(wc -l < /tmp/papa-new.txt)"
+            echo "- Vidéos disponibles après : $(wc -l < /tmp/papa-after.txt) / 48"
+            echo '### Plans créés uniquement pendant ce lancement'
+            if [[ -s /tmp/papa-new.txt ]]; then
+              while IFS= read -r shot; do echo "- $shot — SHA256: $(sha256sum "new-shots/$shot" | cut -d' ' -f1)"; done < /tmp/papa-new.txt
+            else
+              echo '- Aucun nouveau plan : consulter les logs Wan / quota GPU.'
+            fi
+            echo 'Le checkpoint cumulatif contient aussi les anciennes vidéos, ce qui est normal.'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Save only the newly generated videos
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: papa-new-shots-${{ github.run_id }}
+          path: new-shots/*.mp4
+          if-no-files-found: ignore
+          retention-days: 90
       - name: Count and validate footage
         id: check
         shell: bash
