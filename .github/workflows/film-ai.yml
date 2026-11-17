@@ -1,5 +1,8 @@
 name: Produce and assemble AI film (resumable)
 on:
+  push:
+    paths:
+      - 'ai/production-trigger.txt'
   workflow_dispatch:
     inputs:
       max_new_shots:
@@ -44,7 +47,7 @@ jobs:
           echo "Restored $(wc -l < /tmp/papa-before/names.txt) clips"
       - name: Generate missing clips, stopping when free GPU quota is reached
         env:
-          MAX_NEW: ${{ inputs.max_new_shots || '1' }}
+          MAX_NEW: ${{ inputs.max_new_shots || '3' }}
         run: python ai/produce.py generate --max-new "$MAX_NEW"
       - name: Identify newly generated shots and write run summary
         if: always()
