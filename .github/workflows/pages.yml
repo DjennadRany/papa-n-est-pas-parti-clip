@@ -31,6 +31,12 @@ jobs:
           cp ai/scene_prompts.json site/scene_prompts.json
           cp public/assets/images/*.jpg site/assets/images/
           cp public/assets/audio/*.mp3 site/assets/audio/
+      - name: Downloadable offline studio (even when Pages is disabled)
+        uses: actions/upload-artifact@v4
+        with:
+          name: studio-static-website
+          path: site
+          retention-days: 90
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
