@@ -1,0 +1,30 @@
+name: Validate AI film pipeline (no GPU)
+on:
+  push:
+    paths:
+      - 'ai/**'
+      - 'scenes.json'
+      - 'public/assets/images/**'
+      - 'public/assets/audio/**'
+      - '.github/workflows/film-ai.yml'
+      - '.github/workflows/test-pipeline.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Install only CPU test dependencies
+        run: pip install pillow numpy opencv-python-headless
+      - name: Validate timeline, sources and provider contracts
+        run: python -m unittest discover -s ai -p 'test_*.py' -v
+      - name: Prepare clean transition illustrations
+        run: python ai/prepare_images.py
+      - name: Check no paid API secrets required
+        run: python ai/produce.py status
