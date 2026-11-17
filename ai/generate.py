@@ -8,6 +8,7 @@ import os
 import shutil
 import sys
 import time
+import subprocess
 from pathlib import Path
 from gradio_client import Client, handle_file
 
@@ -40,9 +41,11 @@ def main():
     if not image.is_file():
         raise SystemExit(f"Missing prepared illustration: {image}. Run python ai/prepare_images.py first.")
     output=OUT / f"{args.scene:02d}.mp4"
-    if output.exists() and output.stat().st_size>1000:
-        print(f"Already generated: {output}")
-        return
+    if output.exists() and output.stat().st_size>10000:
+        with output.open("rb") as existing:
+            if b"ftyp" in existing.read(64):
+                print(f"Already generated: {output}")
+                return
     # Derive scene-specific action and visual continuity instead of 43 identical prompts.
     ordered=sorted(TIMELINE["scenes"],key=lambda item:item["start"])
     idx=next(i for i,item in enumerate(ordered) if item["id"]==args.scene)
@@ -54,6 +57,10 @@ def main():
              "continuity, hand-painted fantasy backgrounds and stylized 3D characters, "
              "a warm poetic Japanese animated feature aesthetic. No text, no subtitles. ")
     prompt=context+MOTIONS.get(args.scene,DEFAULT)
+    plan_path=ROOT/"ai"/"scene_prompts.json"
+    if plan_path.exists():
+        custom=json.loads(plan_path.read_text(encoding="utf-8"))
+        prompt=context+custom.get(str(args.scene),MOTIONS.get(args.scene,DEFAULT))
     print(f"Submitting scene {args.scene} to {SPACE}; public GPU may be unavailable.",flush=True)
     try:
         client=Client(SPACE)
@@ -68,8 +75,15 @@ def main():
     source=result[0] if isinstance(result,(tuple,list)) else result
     if isinstance(source,dict): source=source.get("video") or source.get("path")
     if not source or not Path(source).exists(): raise RuntimeError(f"No local MP4 from provider: {result}")
-    shutil.copyfile(source,output)
-    if output.stat().st_size<1000: raise RuntimeError("Output MP4 is empty")
+    temporary=output.with_suffix(".partial.mp4")
+    try:
+        shutil.copyfile(source,temporary)
+        if temporary.stat().st_size<10000: raise RuntimeError("Output MP4 is empty")
+        with temporary.open("rb") as generated:
+            if b"ftyp" not in generated.read(64): raise RuntimeError("Provider did not return an MP4")
+        os.replace(temporary,output)
+    finally:
+        temporary.unlink(missing_ok=True)
     print(f"GENERATED {output} ({output.stat().st_size} bytes)",flush=True)
 
 if __name__=="__main__":main()
