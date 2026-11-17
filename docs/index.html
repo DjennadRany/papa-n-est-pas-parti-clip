@@ -33,7 +33,7 @@
 <script type="module">
 import {validateScenes,makeTimeline,frameAt,outputMime} from "./studio-core.mjs";
 const $=id=>document.getElementById(id);
-let images=[],scenes=[],duration=0,urls=[],active=false,recording=false,raf=0,recorder=null;
+let images=[],scenes=[],duration=0,urls=[],active=false,recording=false,raf=0,recorder=null,sharedAudioContext=null,sharedAudioSource=null;
 const canvas=$("screen"),ctx=canvas.getContext("2d"),audio=$("player");
 function status(t){$("notice").textContent=t}
 function clearImages(){for(const u of urls)URL.revokeObjectURL(u);urls=[];images=[];scenes=[]}
@@ -63,14 +63,14 @@ $("render").onclick=async()=>{if(recording||!duration||!scenes.length)return;if(
 recording=true;active=false;$("render").disabled=true;$("play").disabled=true;$("seek").disabled=true;$("demo").disabled=true;const width=Number($("quality").value);canvas.width=width;canvas.height=Math.round(width*9/16);let ac=null,stream=null,source=null;
 try{
 const mime=outputMime(m=>MediaRecorder.isTypeSupported(m));if(!mime)throw Error("Aucun format vidéo enregistré pris en charge");
-ac=new (window.AudioContext||window.webkitAudioContext)();source=ac.createMediaElementSource(audio);const destination=ac.createMediaStreamDestination();source.connect(destination);source.connect(ac.destination);
+ac=sharedAudioContext ||= new (window.AudioContext||window.webkitAudioContext)();source=sharedAudioSource ||= ac.createMediaElementSource(audio);await ac.resume();const destination=ac.createMediaStreamDestination();source.connect(destination);source.connect(ac.destination);
 stream=canvas.captureStream(24);for(const track of destination.stream.getAudioTracks())stream.addTrack(track);
 const chunks=[];recorder=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:4500000});recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
 const done=new Promise((resolve,reject)=>{recorder.onerror=()=>reject(Error("Erreur d'enregistrement"));recorder.onstop=resolve});
 reset();audio.currentTime=0;draw();recorder.start(1000);await audio.play();recording=true;loop();status("Export en cours en temps réel. Ne ferme pas cet onglet.");
 await new Promise((resolve,reject)=>{const end=()=>resolve();const fail=()=>reject(Error("Lecture audio interrompue"));audio.addEventListener("ended",end,{once:true});audio.addEventListener("error",fail,{once:true})});
 recorder.stop();await done;const ext=mime.includes("mp4")?"mp4":"webm";download(new Blob(chunks,{type:mime}),"clip-"+$("title").value.replace(/[^a-z0-9-]/gi,"-")+"."+ext);status("Export terminé : fichier ."+ext+" téléchargé avec l'audio.");
-}catch(err){status("Export interrompu : "+err.message);if(recorder?.state==="recording")recorder.stop()}finally{recording=false;active=false;audio.pause();if(stream)stream.getTracks().forEach(t=>t.stop());if(ac)await ac.close();canvas.width=1280;canvas.height=720;enable();$("demo").disabled=false;draw();updateTime()}
+}catch(err){status("Export interrompu : "+err.message);if(recorder?.state==="recording")recorder.stop()}finally{recording=false;active=false;audio.pause();if(stream)stream.getTracks().forEach(t=>t.stop());if(source){source.disconnect();source.connect(ac.destination)}canvas.width=1280;canvas.height=720;enable();$("demo").disabled=false;draw();updateTime()}
 };
 setInterval(()=>{if(recording)$("progress").value=duration?audio.currentTime/duration:0},400);
 status("Importe tes médias ou charge le projet intégré. L'export dépend des codecs du navigateur.");
