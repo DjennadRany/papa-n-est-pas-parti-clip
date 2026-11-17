@@ -31,4 +31,5 @@ while read -r run; do
     rm -rf "$dir"
   done
 done < /tmp/clip-run-ids.txt
-echo "Recovered total $(find public/assets/video -maxdepth 1 -type f -name '*.mp4' | wc -l) candidate clips from completed runs"\npython ai/produce.py status
+echo "Recovered total $(find public/assets/video -maxdepth 1 -type f -name '*.mp4' | wc -l) candidate clips from completed runs"
+python ai/produce.py status
