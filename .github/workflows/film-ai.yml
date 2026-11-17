@@ -11,7 +11,8 @@ on:
         options: ['0','1','2','3']
         default: '1'
   schedule:
-    - cron: '20 9 * * *'
+    # Retry at staggered intervals; Wan ZeroGPU quota may reset between attempts.
+    - cron: '17 1,7,13,19 * * *'
 permissions:
   contents: read
   actions: read
@@ -55,6 +56,7 @@ jobs:
         run: |
           mkdir -p new-shots
           find public/assets/video -maxdepth 1 -name '*.mp4' -printf '%f\n' | sort > /tmp/papa-after.txt
+          touch /tmp/papa-before/names.txt
           comm -13 /tmp/papa-before/names.txt /tmp/papa-after.txt > /tmp/papa-new.txt
           while IFS= read -r shot; do
             [[ -n "$shot" ]] || continue
@@ -88,6 +90,7 @@ jobs:
           python ai/produce.py status
           if python ai/produce.py validate; then
             echo "complete=true" >> "$GITHUB_OUTPUT"
+            echo '## 48/48 scenes ready — render the complete film' >> "$GITHUB_STEP_SUMMARY"
           else
             echo "complete=false" >> "$GITHUB_OUTPUT"
           fi
