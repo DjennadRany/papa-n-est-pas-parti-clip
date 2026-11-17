@@ -3,6 +3,9 @@ on:
   push:
     paths:
       - 'docs/**'
+      - 'scenes.json'
+      - 'public/assets/images/**'
+      - 'public/assets/audio/**'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 permissions:
@@ -20,11 +23,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Prepare static Studio with bundled media
+        run: |
+          mkdir -p site/assets/images site/assets/audio
+          cp docs/index.html docs/studio-core.mjs site/
+          cp scenes.json site/scenes.json
+          cp public/assets/images/*.jpg site/assets/images/
+          cp public/assets/audio/*.mp3 site/assets/audio/
       - uses: actions/configure-pages@v5
-        with:
-          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: docs
+          path: site
       - id: deployment
         uses: actions/deploy-pages@v4
