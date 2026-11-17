@@ -28,6 +28,7 @@ jobs:
           mkdir -p site/assets/images site/assets/audio
           cp docs/index.html docs/studio-core.mjs site/
           cp scenes.json site/scenes.json
+          cp ai/scene_prompts.json site/scene_prompts.json
           cp public/assets/images/*.jpg site/assets/images/
           cp public/assets/audio/*.mp3 site/assets/audio/
       - uses: actions/configure-pages@v5
