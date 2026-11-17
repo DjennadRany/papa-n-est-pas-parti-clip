@@ -1,0 +1,2 @@
+Production requested by user on 2026-11-17 at 13:19 Europe/Paris.
+Run Wan generation for up to 3 new scenes, resuming existing checkpoints.
