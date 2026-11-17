@@ -3,6 +3,7 @@ Uses existing Wan Gradio provider. Additional providers can be added via adapter
 """
 import argparse
 import json
+import hashlib
 import os
 import subprocess
 import sys
@@ -19,8 +20,26 @@ def valid(path):
     with path.open("rb") as f:
         return b"ftyp" in f.read(64)
 
+def verified():
+    """Reject identical MP4 bytes under different scene IDs."""
+    hashes = {}
+    ready = set()
+    for scene in SCENES:
+        sid = scene["id"]
+        path = VIDEO / f"{sid:02d}.mp4"
+        if not valid(path):
+            continue
+        digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        if digest in hashes:
+            print(f"DUPLICATE_VIDEO scene {sid:02d} matches {hashes[digest]:02d}; regenerating duplicate", flush=True)
+            continue
+        hashes[digest] = sid
+        ready.add(sid)
+    return ready
+
 def missing():
-    return [s for s in SCENES if not valid(VIDEO/f'{s["id"]:02d}.mp4')]
+    ready = verified()
+    return [scene for scene in SCENES if scene["id"] not in ready]
 
 def generate(max_new):
     created=0
@@ -28,12 +47,15 @@ def generate(max_new):
         if created>=max_new:break
         sid=scene["id"]
         dest=VIDEO/f"{sid:02d}.mp4"
+        if dest.exists():
+            dest.unlink()  # invalid or duplicated output must never be mistaken for success
         print(f"START scene {sid:02d}: {scene['title']}",flush=True)
         proc=subprocess.run([sys.executable,str(ROOT/"ai/generate.py"),"--scene",str(sid),"--duration","3.5"],check=False)
         if proc.returncode==75:
             print("QUOTA_EXHAUSTED; preserved all previously generated shots",flush=True)
             return 0
-        if proc.returncode or not valid(dest):
+        if proc.returncode or not valid(dest) or sid not in verified():
+            dest.unlink(missing_ok=True)
             print(f"SCENE_FAILED {sid:02d}; stop without discarding progress",flush=True)
             return 0
         created+=1
