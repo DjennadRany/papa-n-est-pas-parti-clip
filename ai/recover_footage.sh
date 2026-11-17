@@ -3,7 +3,7 @@
 set -euo pipefail
 mkdir -p public/assets/video
 if [[ -z "${GH_TOKEN:-}" ]]; then echo "GH_TOKEN unavailable";exit 1;fi
-gh run list --repo "$GITHUB_REPOSITORY" --limit 60 --json databaseId --jq '.[].databaseId' > /tmp/clip-run-ids.txt
+gh run list --repo "$GITHUB_REPOSITORY" --workflow film-ai.yml --limit 90 --json databaseId --jq '.[].databaseId' > /tmp/clip-run-ids.txt
 while read -r run; do
   for artifact in papa-clean-ai-checkpoint-v2 papa-ai-footage-and-film papa-ai-shots-checkpoint ai-shot-1; do
     dir="/tmp/clip-assets-$run-$artifact"
@@ -21,7 +21,7 @@ while read -r run; do
         echo "Discard old watermarked scene $name"
         continue
       fi
-      if [[ ! -s "public/assets/video/$name" ]];then
+      if [[ -s "$src" ]] && [[ ! -s "public/assets/video/$name" ]];then
         cp "$src" "public/assets/video/$name"
         echo "Recovered $name from run $run"
       fi
