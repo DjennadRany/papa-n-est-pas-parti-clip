@@ -31,9 +31,9 @@ jobs:
           node --input-type=module <<'JS'
           import fs from 'node:fs';
           const html=fs.readFileSync('docs/index.html','utf8');
-          const match=html.match(/<script type="module">([\\s\\S]*?)<\\/script>/);
-          if(!match)throw Error('Studio module missing');
-          fs.writeFileSync('/tmp/studio-ui.mjs',match[1].replace('from "./studio-core.mjs"','from "./studio-core.mjs"'));
+          const start=html.indexOf('<script type="module">');const end=html.indexOf('</script>',start);
+          if(start<0||end<0)throw Error('Studio module missing');
+          fs.writeFileSync('/tmp/studio-ui.mjs',html.slice(start+'<script type="module">'.length,end));
           JS
           node --check /tmp/studio-ui.mjs
       - name: Validate 48 scenes and assets
