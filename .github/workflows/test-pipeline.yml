@@ -3,6 +3,7 @@ on:
   push:
     paths:
       - 'ai/**'
+      - 'docs/**'
       - 'scenes.json'
       - 'public/assets/images/**'
       - 'public/assets/audio/**'
@@ -20,6 +21,11 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test browser timeline and export fallback
+        run: node --test docs/studio-core.test.mjs
       - name: Install only CPU test dependencies
         run: pip install pillow numpy opencv-python-headless
       - name: Validate timeline, sources and provider contracts
