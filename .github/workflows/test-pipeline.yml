@@ -32,5 +32,8 @@ jobs:
         run: python -m unittest discover -s ai -p 'test_*.py' -v
       - name: Prepare clean transition illustrations
         run: python ai/prepare_images.py
-      - name: Check no paid API secrets required
-        run: python ai/produce.py status
+      - name: Explain clean-runner status (not production progress)
+        run: |
+          echo 'CPU validation only: this clean runner intentionally has no production MP4s.'
+          echo 'Do not interpret ready=0 here as lost footage; use the film-ai workflow progress.'
+          python ai/produce.py status
